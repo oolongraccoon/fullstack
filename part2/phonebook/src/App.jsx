@@ -1,26 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import nameService from './services/names'
+import Notification from './components/notification'
 
-const Notification = ({ message }) => {
-  if (message === null) {
-    return null
-  }
-  const Style = {
-    color: 'green',
-    background: 'lightgrey',
-    fontSize: 20,
-    borderStyle: 'solid',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10
-  }
-  return (
-    <div style ={Style} className='added'>
-      {message}
-    </div>
-  )
-}
 
 const PersonForm = ({addName, handleNameChange, handleNumberChange, newName, newNumber }) => {
   return (
@@ -53,7 +35,7 @@ const App = () => {
   const [showAll, setShowAll] = useState(true)
   const [newNumber, setNewNumber] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [addedMessage, setAddedMessage] = useState(null)
+  const [info, setInfo] = useState({ message: null})
   useEffect(() => {
     nameService
       .getAll()
@@ -61,7 +43,17 @@ const App = () => {
         setPersons(initialNotes)
       })
   }, [])
+   
+  const notifyWith = (message, type='info') => {
+    setInfo({
+      message, type
+    })
 
+    setTimeout(() => {
+      setInfo({ message: null} )
+    }, 3000)
+    
+  }
   const addName = (event) => {
     event.preventDefault()
     const existingPerson = persons.find((person) => person.name === newName)
@@ -77,10 +69,13 @@ const App = () => {
               person.id === existingPerson.id ? returnedPerson : person
             )
           );
+          notifyWith(`Added ${existingPerson.name}`)
           setNewName('');
           setNewNumber('');
         })
         .catch((error) => {
+          notifyWith(error.response.data.error,'error')
+          console.log(error.response.data.error)
           console.error('Error updating contact:', error)
         })
     } else {
@@ -99,25 +94,28 @@ const App = () => {
     .create(nameObject)
     .then(returnedName => {
       setPersons(persons.concat(returnedName))
-      setAddedMessage(`Added ${returnedName.name}`)
-      setTimeout(() => {
-        setAddedMessage("")
-      }, 3000)
+      notifyWith(`Added ${returnedName.name}`)
       setNewName('')
       setNewNumber('')
     })
+    .catch(error => {
+      notifyWith(error.response.data.error,'error')
+      console.log(error.response.data.error)
+  })
   }
-  }
+}
   const handleDelete = (id) => {
     const personToDelete = persons.find(person => person.id === id)
     if (window.confirm(`Delete ${personToDelete.name}?`)) {
       nameService
         .remove(id)
         .then(() => {
-          setPersons(persons.filter(person => person.id !== id));
+          setPersons(persons.filter(person => person.id !== id))
+          notifyWith(`${personToDelete.name} deleted!`)
         })
         .catch(error => {
-          console.error("Error deleting contact:", error);
+          notifyWith(error.response.data.error,'error')
+          console.error("Error deleting contact:", error)
         });
     }
   };
@@ -139,7 +137,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
-      <Notification message={addedMessage} />
+      <Notification info={info} />
       <Filter
       searchTerm = {searchTerm}
       handleSearchChange = {handleSearchChange}/>
